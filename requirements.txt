@@ -1,0 +1,28 @@
+# Requirements for Extended Monorail LCA/LCCA Assessment Tool
+# Python 3.7+ required
+
+# Core GUI framework (usually comes with Python)
+# tkinter - included with Python installation
+
+# Scientific computing and data analysis
+numpy>=1.19.0
+pandas>=1.3.0
+
+# Plotting and visualization
+matplotlib>=3.3.0
+
+# Optional: For enhanced plotting capabilities
+# seaborn>=0.11.0
+
+# Optional: For data export functionality
+# openpyxl>=3.0.0  # For Excel export
+# xlsxwriter>=3.0.0  # Alternative Excel writer
+
+# Optional: For advanced mathematical operations
+# scipy>=1.7.0
+
+# Optional: For unit testing (included with Python)
+# unittest - included with Python installation
+
+# Installation command:
+# pip install -r requirements.txt 

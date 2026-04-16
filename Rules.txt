@@ -1,0 +1,214 @@
+Overall Sustainability Assessment Equations (Monorail LCA/LCCA Tool)
+===================================================================
+
+1. Overall Sustainability Score (Four Pillars)
+---------------------------------------------
+
+Definitions:
+  S_mat   : Materials pillar score      [0–100]
+  S_env   : Environmental pillar score  [0–100]
+  S_op    : Operational pillar score    [0–100]
+  S_econ  : Economic pillar score       [0–100]
+
+Overall sustainability score:
+  S_overall = 0.25 * S_mat
+            + 0.30 * S_env
+            + 0.25 * S_op
+            + 0.20 * S_econ
+
+2. Materials Pillar – S_mat
+---------------------------
+
+2.1 Physical quantities
+  C : Concrete volume             [m^3]
+  S : Steel mass                  [ton]
+  A : Aluminum mass               [ton]
+  W : Engineered wood volume      [m^3]
+  F : FRP mass                    [ton]
+  G : Glass area                  [m^2]
+
+Each material i has an actual quantity Q_i and a reference quantity Q_i_ref
+based on the reference Cairo monorail project.
+
+2.2 Normalized intensity per material
+  I_i = Q_i / Q_i_ref
+
+2.3 Intensity score function f(I) in the range 0–100
+
+If I < 0.5:
+  f(I) = 100 * (1 - (0.5 - I) / 0.5)
+
+If 0.5 <= I <= 1.5:
+  f(I) = 100
+
+If I > 1.5:
+  f(I) = 100 * (1 - (I - 1.5) / 1.5)
+
+Material intensity scores:
+  C_int = f(I_C)
+  S_int = f(I_S)
+  A_int = f(I_A)
+  W_int = f(I_W)
+  F_int = f(I_F)
+  G_int = f(I_G)
+
+2.4 Recycling rates and base material score
+
+Recycling fractions (from percentages):
+  r_s = Steel_Recycling / 100
+  r_a = Aluminum_Recycling / 100
+
+Base material score (weights sum to 1.0):
+  S_mat_base =
+      0.30 * C_int
+    + 0.30 * S_int
+    + 0.20 * A_int
+    + 0.10 * W_int
+    + 0.05 * F_int
+    + 0.05 * G_int
+
+Recycling bonus (up to +10%):
+  b_s      = 0.05 * r_s
+  b_a      = 0.05 * r_a
+  b_recyc  = b_s + b_a
+
+Final materials score:
+  S_mat = min( 100 , S_mat_base * (1 + b_recyc) )
+
+
+3. Environmental Pillar – S_env
+-------------------------------
+
+3.1 Operational energy and CO2
+
+Variables:
+  E_paxkm   : Energy per passenger-km after Chen calibration [kWh / (pax·km)]
+  PKM_daily : Daily passenger-km                             [pax·km / day]
+  CI_grid   : Grid carbon intensity                          [kg CO2 / kWh]
+  R         : Renewable energy share                         [%]
+
+Annual operational energy:
+  E_op_ann = E_paxkm * PKM_daily * 365
+
+Effective carbon intensity after renewables:
+  CI_eff = CI_grid * (1 - R / 100)
+
+Operational carbon intensity (Chen factor 0.8):
+  CI_op = 0.8 * E_paxkm * CI_eff
+
+Annual operational CO2 emissions:
+  CO2_op_ann = (CI_op * PKM_daily * 365) / 1000      [ton CO2 / year]
+
+3.2 Embodied energy and embodied CO2
+
+For each material i, with:
+  k_i : embodied energy coefficient       [MJ / kg]
+  e_i : embodied CO2 coefficient          [kg CO2 / kg]
+  rho_c, rho_w : densities for concrete and wood   [kg / m^3]
+
+Example (concrete):
+  EE_c       = C * rho_c * k_c
+  CO2_emb_c  = C * rho_c * e_c
+
+Example (steel; S is in tons, converted to kg in the code):
+  EE_s       = M_s * k_s
+  CO2_emb_s  = M_s * e_s
+
+Similar expressions are used for aluminum, wood, FRP, and glass.
+
+Recycling credits in energy:
+  credit_EE_s = EE_s * r_s * 0.70
+  credit_EE_a = EE_a * r_a * 0.85
+
+Recycling credits in carbon:
+  credit_CO2_s = CO2_emb_s * r_s * 0.65
+  credit_CO2_a = CO2_emb_a * r_a * 0.90
+
+Total embodied energy:
+  EE_total = (EE_c + EE_s + EE_a + EE_w + EE_f + EE_g)
+             - credit_EE_s - credit_EE_a
+
+Total embodied CO2 (kg then tons):
+  CO2_emb_kg  = (CO2_emb_c + CO2_emb_s + CO2_emb_a
+                 + CO2_emb_w + CO2_emb_f + CO2_emb_g)
+                - credit_CO2_s - credit_CO2_a
+  CO2_emb_ton = CO2_emb_kg / 1000
+
+Total life-cycle CO2:
+  CO2_total = CO2_op_ann + CO2_emb_ton
+
+3.3 Converting CO2 and noise to an environmental score
+
+Reference range for total CO2:
+  CO2_min =  5,000  ton
+  CO2_max = 50,000  ton
+
+CO2-based environmental score S_env_CO2:
+  If CO2_total <= CO2_min:
+      S_env_CO2 = 100
+  Else if CO2_total >= CO2_max:
+      S_env_CO2 = 0
+  Else:
+      S_env_CO2 = 100 * (1 - (CO2_total - CO2_min) / (CO2_max - CO2_min))
+
+Noise reduction vs road:
+  NR : dB reduction
+
+Noise score:
+  S_noise = min( 100 , (NR / 15) * 100 )
+
+Combined environmental score (70% CO2, 30% noise):
+  S_env = 0.70 * S_env_CO2 + 0.30 * S_noise
+
+
+4. Operational Pillar – S_op
+---------------------------
+
+Variables:
+  TS_daily : Daily time savings          [hours / day]
+  Av       : System availability         [0–1]
+  LU       : Land use efficiency         [passengers / ha]
+
+Time-savings score:
+  S_time = min( 100 , (TS_daily / 2500) * 100 )
+
+Availability score:
+  S_avail = 100 * Av
+
+Land-use score:
+  S_land = min( 100 , (LU / 5000) * 100 )
+
+Operational score:
+  S_op = 0.40 * S_time
+       + 0.40 * S_avail
+       + 0.20 * S_land
+
+
+5. Economic Pillar – S_econ
+---------------------------
+
+Variables:
+  J_dir : Direct jobs created
+  m     : Economic multiplier
+
+Total jobs (direct + induced):
+  J_total = J_dir * m
+
+Economic score (scaled to typical ranges):
+  S_econ = min( 100 , (J_total / 1000) * 10 )
+
+
+6. Summary
+----------
+
+The overall sustainability score used in the Enhanced Monorail LCA/LCCA
+Assessment Tool is computed as:
+
+  S_overall = 0.25 * S_mat
+            + 0.30 * S_env
+            + 0.25 * S_op
+            + 0.20 * S_econ
+
+with S_mat, S_env, S_op and S_econ defined by the physical and mathematical
+relations listed above.
+
