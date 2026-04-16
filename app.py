@@ -659,46 +659,47 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════
-# SIDEBAR - INPUT PARAMETERS
+# SIDEBAR - INPUT PARAMETERS (WRAPPED IN FORM TO MIMIC TKINTER RUN)
 # ═══════════════════════════════════════════════════════════════
 with st.sidebar:
     st.markdown("## 📊 Input Parameters")
+    
+    with st.form("assessment_form"):
+        st.markdown("### 📦 Materials")
+        concrete = st.number_input("Concrete (1000 m³)", value=700.0, min_value=0.0, step=10.0, key="concrete")
+        steel = st.number_input("Steel (1000 tons)", value=100.0, min_value=0.0, step=5.0, key="steel")
+        aluminum = st.number_input("Aluminum (1000 tons)", value=5.0, min_value=0.0, step=0.5, key="aluminum")
+        wood = st.number_input("Wood (1000 m³)", value=2.0, min_value=0.0, step=0.5, key="wood")
+        frp = st.number_input("FRP (1000 tons)", value=1.0, min_value=0.0, step=0.1, key="frp")
+        glass = st.number_input("Glass (1000 m²)", value=0.5, min_value=0.0, step=0.1, key="glass")
 
-    st.markdown("### 📦 Materials")
-    concrete = st.number_input("Concrete (1000 m³)", value=700.0, min_value=0.0, step=10.0, key="concrete")
-    steel = st.number_input("Steel (1000 tons)", value=100.0, min_value=0.0, step=5.0, key="steel")
-    aluminum = st.number_input("Aluminum (1000 tons)", value=5.0, min_value=0.0, step=0.5, key="aluminum")
-    wood = st.number_input("Wood (1000 m³)", value=2.0, min_value=0.0, step=0.5, key="wood")
-    frp = st.number_input("FRP (1000 tons)", value=1.0, min_value=0.0, step=0.1, key="frp")
-    glass = st.number_input("Glass (1000 m²)", value=0.5, min_value=0.0, step=0.1, key="glass")
+        st.markdown("### ♻️ Recycling Rates")
+        steel_recycle = st.slider("Steel Recycling (%)", 0, 100, 70, key="steel_recycle")
+        aluminum_recycle = st.slider("Aluminum Recycling (%)", 0, 100, 85, key="aluminum_recycle")
 
-    st.markdown("### ♻️ Recycling Rates")
-    steel_recycle = st.slider("Steel Recycling (%)", 0, 100, 70, key="steel_recycle")
-    aluminum_recycle = st.slider("Aluminum Recycling (%)", 0, 100, 85, key="aluminum_recycle")
+        st.markdown("### 🌍 Environmental")
+        carbon_intensity_input = st.number_input("Grid Carbon (kg CO₂/kWh)", value=0.5, min_value=0.0, step=0.05, key="carbon_int")
+        renewable_share = st.slider("Renewable Energy (%)", 0, 100, 20, key="renewable")
+        land_use = st.number_input("Land Use (pass/ha)", value=5000.0, min_value=0.0, step=100.0, key="land_use")
+        noise_reduction = st.number_input("Noise Reduction (dB)", value=10.0, min_value=0.0, step=1.0, key="noise")
 
-    st.markdown("### 🌍 Environmental")
-    carbon_intensity_input = st.number_input("Grid Carbon (kg CO₂/kWh)", value=0.5, min_value=0.0, step=0.05, key="carbon_int")
-    renewable_share = st.slider("Renewable Energy (%)", 0, 100, 20, key="renewable")
-    land_use = st.number_input("Land Use (pass/ha)", value=5000.0, min_value=0.0, step=100.0, key="land_use")
-    noise_reduction = st.number_input("Noise Reduction (dB)", value=10.0, min_value=0.0, step=1.0, key="noise")
+        st.markdown("### ⚙️ Operational")
+        energy_per_pax = st.number_input("Energy (kWh/pax-km)", value=0.15, min_value=0.0, step=0.01, format="%.3f", key="energy")
+        daily_pax_km = st.number_input("Daily Pax-km (1000)", value=500.0, min_value=0.0, step=10.0, key="daily_pax")
+        time_savings = st.number_input("Time Savings (1000h)", value=2.5, min_value=0.0, step=0.1, key="time_sav")
+        availability = st.slider("Availability (%)", 0, 100, 98, key="avail")
 
-    st.markdown("### ⚙️ Operational")
-    energy_per_pax = st.number_input("Energy (kWh/pax-km)", value=0.15, min_value=0.0, step=0.01, format="%.3f", key="energy")
-    daily_pax_km = st.number_input("Daily Pax-km (1000)", value=500.0, min_value=0.0, step=10.0, key="daily_pax")
-    time_savings = st.number_input("Time Savings (1000h)", value=2.5, min_value=0.0, step=0.1, key="time_sav")
-    availability = st.slider("Availability (%)", 0, 100, 98, key="avail")
+        st.markdown("### 💰 Economic")
+        construction_cost = st.number_input("Construction ($M)", value=2500.0, min_value=0.0, step=50.0, key="const_cost")
+        maintenance_cost = st.number_input("Maintenance ($M/yr)", value=50.0, min_value=0.0, step=5.0, key="maint_cost")
+        jobs_created = st.number_input("Jobs Created", value=5000.0, min_value=0.0, step=100.0, key="jobs")
+        economic_multiplier = st.number_input("Economic Multiplier", value=2.5, min_value=1.0, step=0.1, key="econ_mult")
 
-    st.markdown("### 💰 Economic")
-    construction_cost = st.number_input("Construction ($M)", value=2500.0, min_value=0.0, step=50.0, key="const_cost")
-    maintenance_cost = st.number_input("Maintenance ($M/yr)", value=50.0, min_value=0.0, step=5.0, key="maint_cost")
-    jobs_created = st.number_input("Jobs Created", value=5000.0, min_value=0.0, step=100.0, key="jobs")
-    economic_multiplier = st.number_input("Economic Multiplier", value=2.5, min_value=1.0, step=0.1, key="econ_mult")
-
-    st.markdown("---")
-    run_btn = st.button("🚀 RUN ASSESSMENT", type="primary", use_container_width=True, key="run_btn")
+        st.markdown("---")
+        run_btn = st.form_submit_button("🚀 RUN ASSESSMENT", type="primary", use_container_width=True)
 
 # Collect parameters
-params = {
+current_params = {
     'concrete': concrete, 'steel': steel, 'aluminum': aluminum,
     'wood': wood, 'frp': frp, 'glass': glass,
     'steel_recycle': steel_recycle, 'aluminum_recycle': aluminum_recycle,
@@ -710,12 +711,29 @@ params = {
     'jobs_created': jobs_created, 'economic_multiplier': economic_multiplier
 }
 
-# Run assessment on button click or auto-run
+# Run assessment on button click or auto-run for the first time
 if run_btn or 'results' not in st.session_state:
-    st.session_state['results'] = run_full_assessment(params)
-    st.session_state['params'] = params
+    st.session_state['results'] = run_full_assessment(current_params)
+    st.session_state['params'] = current_params
+    
+    # Store explicit variables for report to avoid scope issues
+    st.session_state['concrete'] = concrete
+    st.session_state['steel'] = steel
+    st.session_state['aluminum'] = aluminum
+    st.session_state['wood'] = wood
+    st.session_state['frp'] = frp
+    st.session_state['glass'] = glass
+    st.session_state['steel_recycle'] = steel_recycle
+    st.session_state['aluminum_recycle'] = aluminum_recycle
+    st.session_state['renewable_share'] = renewable_share
+    st.session_state['energy_per_pax'] = energy_per_pax
+    st.session_state['daily_pax_km'] = daily_pax_km
+    st.session_state['availability'] = availability
+    st.session_state['construction_cost'] = construction_cost
+    st.session_state['maintenance_cost'] = maintenance_cost
 
-results = st.session_state.get('results', run_full_assessment(params))
+results = st.session_state['results']
+params = st.session_state['params']
 
 # ═══════════════════════════════════════════════════════════════
 # MAIN CONTENT - TABS (10 TABS like original)
@@ -765,14 +783,14 @@ with tabs[0]:
     with m4:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-value">${construction_cost + maintenance_cost*30:,.0f}M</div>
+            <div class="metric-value">${params['construction_cost'] + params['maintenance_cost']*30:,.0f}M</div>
             <div class="metric-label">30-Year Cost</div>
             <div class="metric-delta">Jobs: {results['total_jobs']:,.0f}</div>
         </div>""", unsafe_allow_html=True)
     with m5:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-value">{renewable_share}%</div>
+            <div class="metric-value">{params['renewable_share']}%</div>
             <div class="metric-label">Renewable Energy</div>
             <div class="metric-delta">Carbon: {results['effective_carbon_intensity']:.3f} kg/kWh</div>
         </div>""", unsafe_allow_html=True)
@@ -890,14 +908,14 @@ with tabs[0]:
 
 🏗️ MATERIALS ASSESSMENT
    • Material Efficiency Score: {results['material_score']:.1f}/100
-   • Concrete Volume: {concrete:.1f} thousand m³
-   • Steel Mass: {steel:.1f} thousand tons
-   • Aluminum Mass: {aluminum:.1f} thousand tons
-   • Wood Volume: {wood:.1f} thousand m³
-   • FRP Mass: {frp:.1f} thousand tons
-   • Glass Area: {glass:.1f} thousand m²
-   • Steel Recycling Rate: {steel_recycle:.1f}%
-   • Aluminum Recycling Rate: {aluminum_recycle:.1f}%
+   • Concrete Volume: {params['concrete']:.1f} thousand m³
+   • Steel Mass: {params['steel']:.1f} thousand tons
+   • Aluminum Mass: {params['aluminum']:.1f} thousand tons
+   • Wood Volume: {params['wood']:.1f} thousand m³
+   • FRP Mass: {params['frp']:.1f} thousand tons
+   • Glass Area: {params['glass']:.1f} thousand m²
+   • Steel Recycling Rate: {params['steel_recycle']:.1f}%
+   • Aluminum Recycling Rate: {params['aluminum_recycle']:.1f}%
 
 🌱 ENVIRONMENTAL ASSESSMENT
    • Environmental Score: {results['environmental_score']:.1f}/100
@@ -906,18 +924,18 @@ with tabs[0]:
    • Total CO₂ (Op + Embodied): {results['total_co2']:.1f} tons
    • Effective Carbon Intensity: {results['effective_carbon_intensity']:.3f} kg CO₂/kWh
    • Total Embodied Energy: {results['total_ee']:.0f} MJ
-   • Renewable Energy Share: {renewable_share:.1f}%
+   • Renewable Energy Share: {params['renewable_share']:.1f}%
 
 ⚡ OPERATIONAL ASSESSMENT
    • Operational Score: {results['operational_score']:.1f}/100
-   • Energy per Passenger-km: {energy_per_pax:.3f} kWh
-   • Daily Passenger-km: {daily_pax_km:.1f} thousand
-   • System Availability: {availability:.1f}%
+   • Energy per Passenger-km: {params['energy_per_pax']:.3f} kWh
+   • Daily Passenger-km: {params['daily_pax_km']:.1f} thousand
+   • System Availability: {params['availability']:.1f}%
 
 💰 ECONOMIC ASSESSMENT
    • Economic Score: {results['economic_score']:.1f}/100
-   • Construction Cost: ${construction_cost:.1f} million
-   • Annual Maintenance: ${maintenance_cost:.1f} million
+   • Construction Cost: ${params['construction_cost']:.1f} million
+   • Annual Maintenance: ${params['maintenance_cost']:.1f} million
    • Total Jobs Created: {results['total_jobs']:.0f}
    • 30-Year Maintenance: ${results['total_maintenance_cost']:.1f} million
 
@@ -953,7 +971,7 @@ Methodology: ISO 14040/14044 LCA + ASTM E917 LCCA + Chen 2022 Calibration
                 {'Category': 'Environmental', 'Metric': 'Embodied Energy', 'Value': f"{results['total_ee']:.0f}", 'Unit': 'MJ'},
                 {'Category': 'Operational', 'Metric': 'Operational Score', 'Value': f"{results['operational_score']:.1f}", 'Unit': '/100'},
                 {'Category': 'Economic', 'Metric': 'Total Jobs', 'Value': f"{results['total_jobs']:.0f}", 'Unit': ''},
-                {'Category': 'Economic', 'Metric': '30-Year Cost', 'Value': f"{construction_cost + maintenance_cost*30:.0f}", 'Unit': '$M'},
+                {'Category': 'Economic', 'Metric': '30-Year Cost', 'Value': f"{params['construction_cost'] + params['maintenance_cost']*30:.0f}", 'Unit': '$M'},
             ]).to_csv(index=False)
             st.download_button("📥 Download CSV", csv_data,
                               file_name=f"monorail_data_{datetime.now().strftime('%Y%m%d')}.csv")
@@ -994,7 +1012,7 @@ with tabs[1]:
     chen_operational_carbon = CHEN_2022_BENCHMARK['operational_performance']['carbon_kgCO2_per_pkm']
 
     your_embodied_energy_GJ = results['total_ee'] / 1000.0
-    your_operational_carbon_raw = results['energy_per_pax_km'] * carbon_intensity_input * 0.800
+    your_operational_carbon_raw = results['energy_per_pax_km'] * params['carbon_intensity'] * 0.800
 
     def get_status(your_val, bench_val):
         err = abs((your_val - bench_val) / bench_val * 100)
@@ -1287,10 +1305,10 @@ with tabs[6]:
             'Grid Carbon Intensity': results.get('carbon_intensity', 0.5),
             'Renewable Energy Share': results.get('renewable_share', 20),
             'Energy Consumption': results.get('energy_per_pax_km', 0.15),
-            'Steel Recycling Rate': 0.70,
-            'Aluminum Recycling Rate': 0.85,
+            'Steel Recycling Rate': params['steel_recycle'] / 100.0,
+            'Aluminum Recycling Rate': params['aluminum_recycle'] / 100.0,
             'System Lifetime': 50,
-            'Passengers per Day': 40000
+            'Passengers per Day': params['daily_pax_km'] * 1000 / 96
         }
 
         base_co2 = results['total_co2']
