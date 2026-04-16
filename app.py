@@ -715,23 +715,7 @@ current_params = {
 if run_btn or 'results' not in st.session_state:
     st.session_state['results'] = run_full_assessment(current_params)
     st.session_state['params'] = current_params
-    
-    # Store explicit variables for report to avoid scope issues
-    st.session_state['concrete'] = concrete
-    st.session_state['steel'] = steel
-    st.session_state['aluminum'] = aluminum
-    st.session_state['wood'] = wood
-    st.session_state['frp'] = frp
-    st.session_state['glass'] = glass
-    st.session_state['steel_recycle'] = steel_recycle
-    st.session_state['aluminum_recycle'] = aluminum_recycle
-    st.session_state['renewable_share'] = renewable_share
-    st.session_state['energy_per_pax'] = energy_per_pax
-    st.session_state['daily_pax_km'] = daily_pax_km
-    st.session_state['availability'] = availability
-    st.session_state['construction_cost'] = construction_cost
-    st.session_state['maintenance_cost'] = maintenance_cost
-
+    # No direct st.session_state assignments for widget keys to prevent StreamlitAPIException
 results = st.session_state['results']
 params = st.session_state['params']
 
