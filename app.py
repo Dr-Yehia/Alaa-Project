@@ -2,13 +2,9 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
 from plotly.subplots import make_subplots
-from scipy import stats
-from sklearn.preprocessing import MinMaxScaler
 from datetime import datetime
 import io
-import json
 
 # ═══════════════════════════════════════════════════════════════
 # PAGE CONFIGURATION
@@ -39,7 +35,7 @@ CHEN_2022_BENCHMARK = {
     },
     'system_parameters': {
         'length_km': 96,
-        'lifetime_years': 100,
+        'lifetime_years': 50,
         'functional_unit': '1 passenger-km',
         'system_boundary': 'Cradle-to-grave'
     },
@@ -77,6 +73,28 @@ REF_WOOD = 2000
 REF_FRP = 1000
 REF_GLASS = 500
 REF_LENGTH = 96
+ASSESSMENT_LIFETIME_YEARS = 50
+
+ENVIRONMENTAL_REFERENCES = {
+    'co2_min_tons': 5000.0,
+    'co2_max_tons': 50000.0,
+    'renewable_target_pct': 40.0,
+    'noise_target_db': 15.0,
+    'land_efficiency_target_pax_ha': 5000.0
+}
+
+OPERATIONAL_REFERENCES = {
+    'time_savings_target_hours_day': 2500.0,
+    'availability_target_pct': 98.0,
+    'energy_efficiency_baseline_kwh_pkm': 0.20,
+    'land_efficiency_target_pax_ha': 5000.0
+}
+
+ECONOMIC_REFERENCES = {
+    'jobs_target': 12000.0,
+    'multiplier_target': 3.5,
+    'max_maintenance_ratio': 1.0
+}
 
 # ═══════════════════════════════════════════════════════════════
 # EMBODIED ENERGY COEFFICIENTS (MJ per kg)
@@ -147,6 +165,28 @@ def calculate_intensity_score(value, ref_value, min_scale=0.5, max_scale=1.5):
         return 100
 
 
+def calculate_threshold_score(value, bad_value, good_value, higher_is_better=True):
+    """Calculate a 0-100 score against explicit threshold references."""
+    span = abs(good_value - bad_value)
+    if span == 0:
+        return 100.0
+
+    if higher_is_better:
+        normalized = (value - bad_value) / span
+    else:
+        normalized = (bad_value - value) / span
+    return float(np.clip(normalized, 0, 1) * 100.0)
+
+
+def classify_factor_status(score):
+    """Convert factor score to qualitative status."""
+    if score >= 75:
+        return "Good"
+    if score >= 50:
+        return "Moderate"
+    return "Poor"
+
+
 def calculate_material_score_integrated(material_data):
     """Integrated material score with recycling bonuses"""
     concrete_intensity = material_data['concrete_intensity']
@@ -193,9 +233,12 @@ def calculate_environmental_score_integrated(env_data):
     noise_quality_multiplier = 1.0 + (noise_reduction / 15.0) * 0.10
     noise_quality_multiplier = np.clip(noise_quality_multiplier, 1.0, 1.10)
 
-    co2_normalized = (total_co2_adjusted - 5000.0) / (50000.0 - 5000.0)
-    co2_normalized = np.clip(co2_normalized, 0, 1)
-    co2_score = (1.0 - co2_normalized) * 100.0
+    co2_score = calculate_threshold_score(
+        total_co2_adjusted,
+        ENVIRONMENTAL_REFERENCES['co2_max_tons'],
+        ENVIRONMENTAL_REFERENCES['co2_min_tons'],
+        higher_is_better=False
+    )
 
     environmental_score = co2_score * noise_quality_multiplier
     environmental_score = np.clip(environmental_score, 0, 100)
@@ -211,13 +254,25 @@ def calculate_operational_score_integrated(op_data):
 
     availability_factor = availability / 100.0
     effective_time_savings = time_savings * availability_factor
-    time_score = min(100.0, (effective_time_savings / 2500.0) * 100.0)
+    time_score = calculate_threshold_score(
+        effective_time_savings,
+        0.0,
+        OPERATIONAL_REFERENCES['time_savings_target_hours_day'],
+        higher_is_better=True
+    )
 
-    energy_bonus = (0.20 - energy_efficiency) / 0.20
+    energy_bonus = (
+        OPERATIONAL_REFERENCES['energy_efficiency_baseline_kwh_pkm'] - energy_efficiency
+    ) / OPERATIONAL_REFERENCES['energy_efficiency_baseline_kwh_pkm']
     energy_bonus = np.clip(energy_bonus, 0, 1)
 
     adjusted_land_efficiency = land_efficiency * (1.0 + energy_bonus * 0.20)
-    land_score = min(100.0, (adjusted_land_efficiency / 5000.0) * 100.0)
+    land_score = calculate_threshold_score(
+        adjusted_land_efficiency,
+        0.0,
+        OPERATIONAL_REFERENCES['land_efficiency_target_pax_ha'],
+        higher_is_better=True
+    )
 
     synergy_multiplier = 1.0 + (availability_factor * float(energy_bonus) * 0.10)
     availability_score = availability * synergy_multiplier
@@ -253,12 +308,22 @@ def calculate_economic_score_integrated(econ_data):
     synergy_factor = 1.0 + (economic_multiplier - 1.0) * 0.20
     adjusted_jobs = total_economic_impact * synergy_factor
 
-    jobs_score = min(100.0, (adjusted_jobs / 12000.0) * 100.0)
+    jobs_score = calculate_threshold_score(
+        adjusted_jobs,
+        0.0,
+        ECONOMIC_REFERENCES['jobs_target'],
+        higher_is_better=True
+    )
 
     cost_efficiency_score = 100.0 * maintenance_efficiency * (1.0 + job_efficiency_bonus)
     cost_efficiency_score = min(100.0, cost_efficiency_score)
 
-    multiplier_score = min(100.0, (economic_multiplier / 3.5) * 100.0)
+    multiplier_score = calculate_threshold_score(
+        economic_multiplier,
+        1.0,
+        ECONOMIC_REFERENCES['multiplier_target'],
+        higher_is_better=True
+    )
 
     economic_score = (
         jobs_score * 0.50 +
@@ -355,7 +420,7 @@ def run_full_assessment(params):
 
     effective_carbon_intensity = carbon_intensity * (1 - renewable_share / 100.0)
     raw_carbon_intensity_val = energy_per_pax_km_calibrated * effective_carbon_intensity * 0.800
-    calibrated_carbon_intensity = raw_carbon_intensity_val
+    calibrated_carbon_intensity = apply_chen_calibration(raw_carbon_intensity_val, 'operational_carbon')
     annual_co2_operational = calibrated_carbon_intensity * daily_pax_km * 365 / 1000
 
     steel_recycle_rate = params['steel_recycle'] / 100.0
@@ -372,9 +437,10 @@ def run_full_assessment(params):
     steel_recycling_credit_ee = ee_steel * (params['steel_recycle'] / 100) * 0.70
     aluminum_recycling_credit_ee = ee_aluminum * (params['aluminum_recycle'] / 100) * 0.85
 
-    total_ee = (ee_concrete + ee_steel + ee_aluminum +
-                ee_wood + ee_frp + ee_glass -
-                steel_recycling_credit_ee - aluminum_recycling_credit_ee)
+    total_ee_raw = (ee_concrete + ee_steel + ee_aluminum +
+                    ee_wood + ee_frp + ee_glass -
+                    steel_recycling_credit_ee - aluminum_recycling_credit_ee)
+    total_ee = apply_chen_calibration(total_ee_raw, 'embodied_energy')
 
     # Embodied Carbon
     carbon_concrete = concrete_volume * DENSITIES['concrete'] * EMISSION_FACTORS['concrete']
@@ -390,6 +456,7 @@ def run_full_assessment(params):
     total_carbon_raw = (carbon_concrete + carbon_steel + carbon_aluminum +
                         carbon_wood + carbon_frp + carbon_glass -
                         steel_recycling_credit_c - aluminum_recycling_credit_c)
+    total_carbon_raw = apply_chen_calibration(total_carbon_raw, 'embodied_carbon')
 
     total_embodied_co2 = total_carbon_raw / 1000
     total_co2 = annual_co2_operational + total_embodied_co2
@@ -404,7 +471,7 @@ def run_full_assessment(params):
     jobs_created = params['jobs_created']
     economic_multiplier = params['economic_multiplier']
     total_jobs = jobs_created * economic_multiplier
-    total_maintenance_cost = annual_maintenance * 30
+    total_maintenance_cost = annual_maintenance * ASSESSMENT_LIFETIME_YEARS
 
     noise_reduction = params['noise_reduction']
     land_use_efficiency = params['land_use']
@@ -438,7 +505,7 @@ def run_full_assessment(params):
         'maintenance_cost': annual_maintenance,
         'jobs_created': jobs_created,
         'economic_multiplier': economic_multiplier,
-        'lifetime': 50
+        'lifetime': ASSESSMENT_LIFETIME_YEARS
     }
 
     material_score = calculate_material_score_integrated(material_data)
@@ -463,6 +530,13 @@ def run_full_assessment(params):
         adjusted_economic_score * 0.20
     )
     overall_score = float(np.clip(overall_score, 0, 100))
+    factor_scores = {
+        'materials': material_score,
+        'environmental': environmental_score,
+        'operational': operational_score,
+        'economic': economic_score
+    }
+    factor_status = {k: classify_factor_status(v) for k, v in factor_scores.items()}
 
     return {
         'material_score': material_score,
@@ -500,7 +574,7 @@ def run_full_assessment(params):
         'noise_reduction': noise_reduction,
         'land_use_efficiency': land_use_efficiency,
         'sustainability_score': overall_score,
-        'total_cost': construction_cost * 1e6 + annual_maintenance * 1e6 * 30,
+        'total_cost': construction_cost * 1e6 + annual_maintenance * 1e6 * ASSESSMENT_LIFETIME_YEARS,
         'carbon_intensity': carbon_intensity,
         'ee_concrete': ee_concrete,
         'ee_steel': ee_steel,
@@ -514,6 +588,8 @@ def run_full_assessment(params):
         'carbon_wood': carbon_wood,
         'carbon_frp': carbon_frp,
         'carbon_glass': carbon_glass,
+        'factor_scores': factor_scores,
+        'factor_status': factor_status,
     }
 
 
@@ -767,8 +843,8 @@ with tabs[0]:
     with m4:
         st.markdown(f"""
         <div class="metric-card">
-            <div class="metric-value">${params['construction_cost'] + params['maintenance_cost']*30:,.0f}M</div>
-            <div class="metric-label">30-Year Cost</div>
+            <div class="metric-value">${params['construction_cost'] + params['maintenance_cost']*ASSESSMENT_LIFETIME_YEARS:,.0f}M</div>
+            <div class="metric-label">{ASSESSMENT_LIFETIME_YEARS}-Year Cost</div>
             <div class="metric-delta">Jobs: {results['total_jobs']:,.0f}</div>
         </div>""", unsafe_allow_html=True)
     with m5:
@@ -833,6 +909,15 @@ with tabs[0]:
             margin=dict(t=30, b=30)
         )
         st.plotly_chart(fig_radar, use_container_width=True)
+
+    st.markdown("#### 🧭 Factor Quality Classification")
+    factor_status_df = pd.DataFrame([
+        {'Factor': 'Materials', 'Score': f"{results['factor_scores']['materials']:.1f}", 'Status': results['factor_status']['materials']},
+        {'Factor': 'Environmental', 'Score': f"{results['factor_scores']['environmental']:.1f}", 'Status': results['factor_status']['environmental']},
+        {'Factor': 'Operational', 'Score': f"{results['factor_scores']['operational']:.1f}", 'Status': results['factor_status']['operational']},
+        {'Factor': 'Economic', 'Score': f"{results['factor_scores']['economic']:.1f}", 'Status': results['factor_status']['economic']},
+    ])
+    st.dataframe(factor_status_df, use_container_width=True, hide_index=True)
 
     # Interaction Analysis
     st.markdown("#### 🔄 Cross-Category Interaction Effects")
@@ -921,7 +1006,7 @@ with tabs[0]:
    • Construction Cost: ${params['construction_cost']:.1f} million
    • Annual Maintenance: ${params['maintenance_cost']:.1f} million
    • Total Jobs Created: {results['total_jobs']:.0f}
-   • 30-Year Maintenance: ${results['total_maintenance_cost']:.1f} million
+   • {ASSESSMENT_LIFETIME_YEARS}-Year Maintenance: ${results['total_maintenance_cost']:.1f} million
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -955,7 +1040,7 @@ Methodology: ISO 14040/14044 LCA + ASTM E917 LCCA + Chen 2022 Calibration
                 {'Category': 'Environmental', 'Metric': 'Embodied Energy', 'Value': f"{results['total_ee']:.0f}", 'Unit': 'MJ'},
                 {'Category': 'Operational', 'Metric': 'Operational Score', 'Value': f"{results['operational_score']:.1f}", 'Unit': '/100'},
                 {'Category': 'Economic', 'Metric': 'Total Jobs', 'Value': f"{results['total_jobs']:.0f}", 'Unit': ''},
-                {'Category': 'Economic', 'Metric': '30-Year Cost', 'Value': f"{params['construction_cost'] + params['maintenance_cost']*30:.0f}", 'Unit': '$M'},
+                {'Category': 'Economic', 'Metric': f'{ASSESSMENT_LIFETIME_YEARS}-Year Cost', 'Value': f"{params['construction_cost'] + params['maintenance_cost']*ASSESSMENT_LIFETIME_YEARS:.0f}", 'Unit': '$M'},
             ]).to_csv(index=False)
             st.download_button("📥 Download CSV", csv_data,
                               file_name=f"monorail_data_{datetime.now().strftime('%Y%m%d')}.csv")
